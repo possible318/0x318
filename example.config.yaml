@@ -1,0 +1,10 @@
+debug: 0 # 0 or 1
+port: "8700"
+base_url: ""
+token: ""
+model: "gpt-3.5-turbo"
+session_timeout: 600
+max_question_len: 2048
+max_answer_len: 2048
+max_text: 4096
+http_proxy: ""

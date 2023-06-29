@@ -1,0 +1,9 @@
+.idea
+.vscode
+
+/data
+log.log
+config.yaml
+go.sum
+
+main

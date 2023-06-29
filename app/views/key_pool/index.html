@@ -1,0 +1,206 @@
+{{ define "key_pool/index.html" }}
+<html>
+
+<head>
+    <title>KeyPool生成器</title>
+    <style>
+        body {
+            background-color: #f2f2f2;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            margin: 0 auto;
+            max-width: 600px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        #tooltip {
+            background-color: darkseagreen;
+            color: #fff;
+            border: 1px solid #d4d4d4;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            resize: none;
+            font-size: 16px;
+            line-height: 1.5;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        button {
+            background-color: #007aff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .progress {
+            height: 20px;
+            background-color: #f2f2f2;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: #007aff;
+            border-radius: 5px;
+            width: 0%;
+            transition: width 0.1s ease-in-out;
+        }
+
+        .progress-text {
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        div[id="pk"],
+        div[id="sk"],
+        div[id="ak"] {
+            display: none;
+        }
+
+        div[id="pk-content"],
+        div[id="sk-content"],
+        div[id="ak-content"] {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 8px;
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 16px;
+            white-space: nowrap;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+    <div id="tooltip">
+        按照 123@gmail.com,password 输入<br/>
+        每一组账户之间用换行区分
+    </div>
+    <label>
+        <textarea name="account" placeholder="请输入邮箱密码"></textarea>
+    </label>
+    <div class="progress" id="progress">
+        <div class="progress-bar"><span class="progress-text"></span></div>
+    </div>
+    <br/>
+    <button id="submit">提交</button>
+    <br/>
+    <br/>
+    <div id="pk">
+        <sup><a href="#" onclick="copyText('pk')">[copy]</a></sup>
+        <div id="pk-content"></div>
+    </div>
+    <div id="sk">
+        <sup><a href="#" onclick="copyText('sk')">[copy]</a></sup>
+        <div id="sk-content"></div>
+    </div>
+    <div id="ak">
+        <sup><a href="#" onclick="copyText('ak')">[copy]</a></sup>
+        <div id="ak-content"></div>
+    </div>
+</div>
+
+
+<!--引入jquery-->
+<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.min.js"></script>
+<script>
+    //方法二：点击按钮复制div标签中的内容
+    function copyText(divId) {
+        const range = document.createRange();
+        range.selectNode(document.getElementById(divId));
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) selection.removeAllRanges();
+        selection.addRange(range);
+        document.execCommand('copy');
+    }
+
+
+    // submit 点击事件
+    $('.container').on("click", "#submit", function () {
+        let account = $('textarea[name="account"]').val();
+
+        let progress = $('.progress-bar');
+        progress.css('width', `0%`);
+        $('.progress-text').text("0/0")
+
+        // 隐藏
+        $('#pk').css('display', 'none')
+        $('#sk').css('display', 'none')
+        $('#ak').css('display', 'none')
+        // 清空
+        $('#pk-content').empty()
+        $('#sk-content').empty()
+        $('#ak-content').empty()
+
+        // 将account encode
+        account = encodeURIComponent(account);
+        let url = "/keyPoll/make?account=" + account;
+        let eventSource = new EventSource(url);
+        // 接收事件流数据，并将其添加到页面中
+        eventSource.addEventListener("message", function (event) {
+            // 字符串解析为json
+            let data = JSON.parse(event.data)
+            // 判断消息类型 进度类型处理进度
+            if (data.type === "progress") {
+                // 计算进度百分比
+                const percentComplete = (data.loaded / data.total) * 100;
+                // 更新进度条
+                progress.css('width', `${percentComplete}%`);
+                // 更新进度条提示
+                $('.progress-text').text(data.loaded + "/" + data.total)
+            } else if (data.type === "pk") {
+                // pk类型处理pk
+                $('#pk').css('display', 'block')
+                let content = "<p>data.msg</p>"
+                // 追加pk
+                $('#pk-content').text(content)
+            } else if (data.type === "sk") {
+                // 错误类型处理错误
+                $('#sk').css('display', 'block')
+                let content = "<p>" + data.email + "&nbsp;&nbsp;&nbsp;&nbsp;" + data.token + "</p>"
+                $('#sk-content').append(content)
+            } else if (data.type === "ak") {
+                // 错误类型处理错误
+                $('#ak').css('display', 'block')
+                let content = "<p>" + data.email + "&nbsp;&nbsp;&nbsp;&nbsp;" + data.token + "</p>"
+                $('#ak-content').append(content)
+            } else if (data.type === "error") {
+                // 错误类型处理错误
+                console.log(data.msg)
+            } else {
+                // 关闭事件流
+                eventSource.close();
+            }
+        });
+    })
+</script>
+</body>
+
+</html>
+{{ end }}
